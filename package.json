@@ -1,0 +1,24 @@
+{
+  "name": "hubspot-landing-pages-ci-cd",
+  "version": "1.0.0",
+  "description": "Automated deployment workflow for HubSpot Landing Pages",
+  "main": "scripts/deploy-hubspot.js",
+  "scripts": {
+    "deploy:dev": "cross-env ENVIRONMENT=staging node scripts/deploy-hubspot.js",
+    "deploy:main": "cross-env ENVIRONMENT=production node scripts/deploy-hubspot.js"
+  },
+  "keywords": [
+    "hubspot",
+    "landing-pages",
+    "github-actions",
+    "ci-cd"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@hubspot/cli": "^5.0.0"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3"
+  }
+}

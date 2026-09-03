@@ -1,0 +1,81 @@
+name: Deploy Landing Pages to HubSpot
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+    paths:
+      - 'pages/**'
+      - 'scripts/**'
+      - '.github/workflows/push-to-hubspot.yml'
+  workflow_dispatch:
+
+jobs:
+  # ----------------------------------------------------
+  # Dev Branch -> Deploy to HubSpot Content Staging
+  # ----------------------------------------------------
+  deploy-dev-staging:
+    name: Deploy to HubSpot Content Staging (dev)
+    if: github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci || npm install
+
+      - name: Sync HTML Files to HubSpot Design Manager (Staging Folder)
+        uses: HubSpot/hubspot-cms-deploy-action@v2.0.1
+        with:
+          src_dir: 'pages'
+          dest_dir: 'landing-pages-staging'
+          account_id: ${{ secrets.HUBSPOT_ACCOUNT_ID }}
+          personal_access_key: ${{ secrets.HUBSPOT_PERSONAL_ACCESS_KEY }}
+
+      - name: Publish Landing Pages to HubSpot Content Staging
+        env:
+          HUBSPOT_PERSONAL_ACCESS_KEY: ${{ secrets.HUBSPOT_PERSONAL_ACCESS_KEY }}
+          ENVIRONMENT: staging
+        run: node scripts/deploy-hubspot.js
+
+  # ----------------------------------------------------
+  # Main Branch -> Deploy to HubSpot Production Landing Pages
+  # ----------------------------------------------------
+  deploy-main-production:
+    name: Deploy to HubSpot Live Landing Pages (main)
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci || npm install
+
+      - name: Sync HTML Files to HubSpot Design Manager (Production Folder)
+        uses: HubSpot/hubspot-cms-deploy-action@v2.0.1
+        with:
+          src_dir: 'pages'
+          dest_dir: 'landing-pages-production'
+          account_id: ${{ secrets.HUBSPOT_ACCOUNT_ID }}
+          personal_access_key: ${{ secrets.HUBSPOT_PERSONAL_ACCESS_KEY }}
+
+      - name: Publish Landing Pages Live to HubSpot Production
+        env:
+          HUBSPOT_PERSONAL_ACCESS_KEY: ${{ secrets.HUBSPOT_PERSONAL_ACCESS_KEY }}
+          ENVIRONMENT: production
+        run: node scripts/deploy-hubspot.js
