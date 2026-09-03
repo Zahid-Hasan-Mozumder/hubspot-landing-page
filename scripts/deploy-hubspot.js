@@ -11,18 +11,26 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 
-const HUBSPOT_ACCESS_TOKEN = process.env.HUBSPOT_PERSONAL_ACCESS_KEY || process.env.HUBSPOT_ACCESS_TOKEN || process.env.HUBSPOT_PRIVATE_APP_TOKEN || process.env.HUBSPOT_API_KEY;
+const candidateTokens = [
+  process.env.HUBSPOT_PERSONAL_ACCESS_KEY,
+  process.env.HUBSPOT_PRIVATE_APP_TOKEN,
+  process.env.HUBSPOT_ACCESS_TOKEN,
+  process.env.HUBSPOT_API_KEY
+].filter(Boolean);
+
+// Prioritize token starting with 'pat-' if present
+const HUBSPOT_ACCESS_TOKEN = candidateTokens.find(t => t.startsWith('pat-')) || candidateTokens[0];
 const ENVIRONMENT = (process.env.ENVIRONMENT || 'staging').toLowerCase();
 const IS_PRODUCTION = ENVIRONMENT === 'production' || ENVIRONMENT === 'main';
 
 if (!HUBSPOT_ACCESS_TOKEN) {
-  console.error('❌ Error: HUBSPOT_PERSONAL_ACCESS_KEY environment variable is not set.');
+  console.error('❌ Error: No HubSpot access token found in environment variables.');
   process.exit(1);
 }
 
 if (!HUBSPOT_ACCESS_TOKEN.startsWith('pat-')) {
-  console.warn('⚠️ Warning: HUBSPOT_PERSONAL_ACCESS_KEY does not start with "pat-".');
-  console.warn('   Ensure your GitHub Repository Secret contains your HubSpot Private App Token (e.g. pat-na1-xxxx).');
+  console.warn('⚠️ Warning: Selected HubSpot Access Token does not start with "pat-".');
+  console.warn('   Ensure your GitHub Repository Secret (HUBSPOT_PERSONAL_ACCESS_KEY) contains your Private App Token starting with pat-na1- or pat-eu1-.');
 }
 
 const PAGES_DIR = path.join(__dirname, '..', 'pages');
