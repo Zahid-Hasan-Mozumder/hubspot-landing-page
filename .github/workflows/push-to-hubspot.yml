@@ -31,6 +31,18 @@ jobs:
       - name: Install Dependencies
         run: npm ci || npm install
 
+      - name: Validate HubSpot Secrets
+        run: |
+          if [ -z "${{ secrets.HUBSPOT_PERSONAL_ACCESS_KEY }}" ]; then
+            echo "❌ ERROR: HUBSPOT_PERSONAL_ACCESS_KEY secret is not set in GitHub repository secrets!"
+            exit 1
+          fi
+          if [ -z "${{ secrets.HUBSPOT_ACCOUNT_ID }}" ]; then
+            echo "❌ ERROR: HUBSPOT_ACCOUNT_ID secret is not set in GitHub repository secrets!"
+            exit 1
+          fi
+          echo "✅ HubSpot Secrets verified."
+
       - name: Sync HTML Files to HubSpot Design Manager (Staging Folder)
         uses: HubSpot/hubspot-cms-deploy-action@v2.0.1
         with:
@@ -63,6 +75,18 @@ jobs:
 
       - name: Install Dependencies
         run: npm ci || npm install
+
+      - name: Validate HubSpot Secrets
+        run: |
+          if [ -z "${{ secrets.HUBSPOT_PERSONAL_ACCESS_KEY }}" ]; then
+            echo "❌ ERROR: HUBSPOT_PERSONAL_ACCESS_KEY secret is not set in GitHub repository secrets!"
+            exit 1
+          fi
+          if [ -z "${{ secrets.HUBSPOT_ACCOUNT_ID }}" ]; then
+            echo "❌ ERROR: HUBSPOT_ACCOUNT_ID secret is not set in GitHub repository secrets!"
+            exit 1
+          fi
+          echo "✅ HubSpot Secrets verified."
 
       - name: Sync HTML Files to HubSpot Design Manager (Production Folder)
         uses: HubSpot/hubspot-cms-deploy-action@v2.0.1
