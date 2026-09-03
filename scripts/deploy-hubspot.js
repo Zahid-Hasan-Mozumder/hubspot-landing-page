@@ -79,12 +79,14 @@ async function deployPage(pageInfo) {
   console.log(`\n📄 Processing landing page: ${pageInfo.filename}.html`);
   console.log(`   Mode: ${IS_PRODUCTION ? 'PRODUCTION (Publishing Live)' : 'STAGING (Content Staging / Draft)'}`);
 
+  const templateFolder = IS_PRODUCTION ? 'landing-pages-production' : 'landing-pages-staging';
+
   const pageData = {
     name: pageInfo.title,
     slug: pageInfo.slug,
     htmlTitle: pageInfo.title,
     metaDescription: pageInfo.metaDescription,
-    templatePath: `landing-pages/${IS_PRODUCTION ? 'main' : 'dev'}/${pageInfo.filename}.html`,
+    templatePath: `${templateFolder}/${pageInfo.filename}.html`,
     currentState: IS_PRODUCTION ? 'PUBLISHED' : 'DRAFT',
     widgetContainers: {},
     widgets: {}
