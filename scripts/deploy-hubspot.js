@@ -11,7 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 
-const HUBSPOT_ACCESS_TOKEN = process.env.HUBSPOT_PERSONAL_ACCESS_KEY || process.env.HUBSPOT_ACCESS_TOKEN;
+const HUBSPOT_ACCESS_TOKEN = process.env.HUBSPOT_PERSONAL_ACCESS_KEY || process.env.HUBSPOT_ACCESS_TOKEN || process.env.HUBSPOT_PRIVATE_APP_TOKEN || process.env.HUBSPOT_API_KEY;
 const ENVIRONMENT = (process.env.ENVIRONMENT || 'staging').toLowerCase();
 const IS_PRODUCTION = ENVIRONMENT === 'production' || ENVIRONMENT === 'main';
 
@@ -113,8 +113,8 @@ async function deployPage(pageInfo) {
       console.log(`✅ Page created successfully! ID: ${createRes.id}`);
     }
   } catch (error) {
-    console.warn(`⚠️ API creation notice: ${error.message}`);
-    console.log(`ℹ️ Ensuring template file is synced to HubSpot Design Manager...`);
+    console.error(`❌ HubSpot Landing Page API Error: ${error.message}`);
+    throw error;
   }
 }
 
