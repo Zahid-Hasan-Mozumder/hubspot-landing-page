@@ -47,11 +47,26 @@ hubspot-landing-pages/
    - Create a feature branch off `dev`.
    - Add or edit an HTML file in `pages/` (e.g., `pages/summer-promo.html`).
    - Push to `dev`.
-   - **GitHub Action triggers**: Deploys the HTML file to **HubSpot Content Staging** (Draft status).
+   - **GitHub Action triggers**: Deploys the HTML file to **HubSpot Design Manager** (`landing-pages-staging/` folder) and registers it in **Content Staging** as a draft template/page.
    - Review and test in HubSpot Content Staging.
 2. **Promoting to Live / Production**:
    - Create a Pull Request from `dev` to `main`.
-   - Upon merging into `main`, **GitHub Action triggers**: Publishes the HTML page live on **HubSpot Landing Pages**.
+   - Upon merging into `main`, **GitHub Action triggers**: Deploys the HTML template to **Design Manager** (`landing-pages-production/` folder) and publishes the landing page live.
+
+---
+
+## 2.1. HubSpot CMS Architecture: Design Manager vs. Content Staging
+
+### Why Files Go to Design Manager First
+In HubSpot's CMS architecture:
+- **Design Manager** (`/design-manager/...`): The **Code & Template Store** where developers manage source code, HTML templates, CSS, JS, and modules.
+- **Content Staging** (`/content/.../staging/...`): The **Marketer & Content Editor Workspace** where non-technical users pick templates from Design Manager, fill in copy, preview on test domains, and stage pages for publish.
+
+### Is This Workflow Better?
+**Yes, absolutely.** Automated code deployment into **Design Manager** is the standard, best-practice workflow recommended by HubSpot because:
+1. **Code Safety**: Keeps code version-controlled in GitHub and uploaded safely to Design Manager without risking content deletion in HubSpot.
+2. **Role Separation**: Developers write markup in GitHub -> Design Manager; Marketers create and preview pages in Content Staging based on those templates.
+3. **Instant Preview**: Any code change pushed to `dev` updates the staging template in Design Manager, which immediately reflects in Content Staging.
 
 ---
 
