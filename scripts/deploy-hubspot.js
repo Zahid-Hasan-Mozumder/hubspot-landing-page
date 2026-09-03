@@ -20,6 +20,11 @@ if (!HUBSPOT_ACCESS_TOKEN) {
   process.exit(1);
 }
 
+if (!HUBSPOT_ACCESS_TOKEN.startsWith('pat-')) {
+  console.warn('⚠️ Warning: HUBSPOT_PERSONAL_ACCESS_KEY does not start with "pat-".');
+  console.warn('   Ensure your GitHub Repository Secret contains your HubSpot Private App Token (e.g. pat-na1-xxxx).');
+}
+
 const PAGES_DIR = path.join(__dirname, '..', 'pages');
 
 /**
