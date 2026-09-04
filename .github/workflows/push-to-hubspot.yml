@@ -27,7 +27,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Install Dependencies
         run: npm ci || npm install
@@ -43,6 +42,7 @@ jobs:
       - name: Publish Landing Pages to HubSpot Content Staging
         env:
           HUBSPOT_PERSONAL_ACCESS_KEY: ${{ secrets.HUBSPOT_PERSONAL_ACCESS_KEY }}
+          HUBSPOT_PRIVATE_APP_TOKEN: ${{ secrets.HUBSPOT_PRIVATE_APP_TOKEN }}
           ENVIRONMENT: staging
         run: node scripts/deploy-hubspot.js
 
@@ -61,7 +61,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Install Dependencies
         run: npm ci || npm install
@@ -77,5 +76,6 @@ jobs:
       - name: Publish Landing Pages Live to HubSpot Production
         env:
           HUBSPOT_PERSONAL_ACCESS_KEY: ${{ secrets.HUBSPOT_PERSONAL_ACCESS_KEY }}
+          HUBSPOT_PRIVATE_APP_TOKEN: ${{ secrets.HUBSPOT_PRIVATE_APP_TOKEN }}
           ENVIRONMENT: production
         run: node scripts/deploy-hubspot.js

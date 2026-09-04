@@ -11,13 +11,26 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 
-const HUBSPOT_ACCESS_TOKEN = process.env.HUBSPOT_PERSONAL_ACCESS_KEY || process.env.HUBSPOT_ACCESS_TOKEN;
+const candidateTokens = [
+  process.env.HUBSPOT_PERSONAL_ACCESS_KEY,
+  process.env.HUBSPOT_PRIVATE_APP_TOKEN,
+  process.env.HUBSPOT_ACCESS_TOKEN,
+  process.env.HUBSPOT_API_KEY
+].filter(Boolean);
+
+// Prioritize token starting with 'pat-' if present
+const HUBSPOT_ACCESS_TOKEN = candidateTokens.find(t => t.startsWith('pat-')) || candidateTokens[0];
 const ENVIRONMENT = (process.env.ENVIRONMENT || 'staging').toLowerCase();
 const IS_PRODUCTION = ENVIRONMENT === 'production' || ENVIRONMENT === 'main';
 
 if (!HUBSPOT_ACCESS_TOKEN) {
-  console.error('❌ Error: HUBSPOT_PERSONAL_ACCESS_KEY environment variable is not set.');
+  console.error('❌ Error: No HubSpot access token found in environment variables.');
   process.exit(1);
+}
+
+if (!HUBSPOT_ACCESS_TOKEN.startsWith('pat-')) {
+  console.warn('⚠️ Warning: Selected HubSpot Access Token does not start with "pat-".');
+  console.warn('   Ensure your GitHub Repository Secret (HUBSPOT_PERSONAL_ACCESS_KEY) contains your Private App Token starting with pat-na1- or pat-eu1-.');
 }
 
 const PAGES_DIR = path.join(__dirname, '..', 'pages');
@@ -79,12 +92,14 @@ async function deployPage(pageInfo) {
   console.log(`\n📄 Processing landing page: ${pageInfo.filename}.html`);
   console.log(`   Mode: ${IS_PRODUCTION ? 'PRODUCTION (Publishing Live)' : 'STAGING (Content Staging / Draft)'}`);
 
+  const templateFolder = IS_PRODUCTION ? 'landing-pages-production' : 'landing-pages-staging';
+
   const pageData = {
     name: pageInfo.title,
     slug: pageInfo.slug,
     htmlTitle: pageInfo.title,
     metaDescription: pageInfo.metaDescription,
-    templatePath: `landing-pages/${IS_PRODUCTION ? 'main' : 'dev'}/${pageInfo.filename}.html`,
+    templatePath: `${templateFolder}/${pageInfo.filename}.html`,
     currentState: IS_PRODUCTION ? 'PUBLISHED' : 'DRAFT',
     widgetContainers: {},
     widgets: {}
@@ -111,8 +126,8 @@ async function deployPage(pageInfo) {
       console.log(`✅ Page created successfully! ID: ${createRes.id}`);
     }
   } catch (error) {
-    console.warn(`⚠️ API creation notice: ${error.message}`);
-    console.log(`ℹ️ Ensuring template file is synced to HubSpot Design Manager...`);
+    console.error(`❌ HubSpot Landing Page API Error: ${error.message}`);
+    throw error;
   }
 }
 
