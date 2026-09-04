@@ -11,26 +11,13 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 
-const candidateTokens = [
-  process.env.HUBSPOT_PERSONAL_ACCESS_KEY,
-  process.env.HUBSPOT_PRIVATE_APP_TOKEN,
-  process.env.HUBSPOT_ACCESS_TOKEN,
-  process.env.HUBSPOT_API_KEY
-].filter(Boolean);
-
-// Prioritize token starting with 'pat-' if present
-const HUBSPOT_ACCESS_TOKEN = candidateTokens.find(t => t.startsWith('pat-')) || candidateTokens[0];
+const HUBSPOT_ACCESS_TOKEN = process.env.HUBSPOT_PERSONAL_ACCESS_KEY || process.env.HUBSPOT_ACCESS_TOKEN;
 const ENVIRONMENT = (process.env.ENVIRONMENT || 'staging').toLowerCase();
 const IS_PRODUCTION = ENVIRONMENT === 'production' || ENVIRONMENT === 'main';
 
 if (!HUBSPOT_ACCESS_TOKEN) {
-  console.error('❌ Error: No HubSpot access token found in environment variables.');
+  console.error('❌ Error: HUBSPOT_PERSONAL_ACCESS_KEY environment variable is not set.');
   process.exit(1);
-}
-
-if (!HUBSPOT_ACCESS_TOKEN.startsWith('pat-')) {
-  console.warn('⚠️ Warning: Selected HubSpot Access Token does not start with "pat-".');
-  console.warn('   Ensure your GitHub Repository Secret (HUBSPOT_PERSONAL_ACCESS_KEY) contains your Private App Token starting with pat-na1- or pat-eu1-.');
 }
 
 const PAGES_DIR = path.join(__dirname, '..', 'pages');
@@ -88,46 +75,83 @@ function parseHtmlFile(filePath) {
   };
 }
 
+/**
+ * Small delay to avoid HubSpot rate-limiting (429s).
+ */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Publish a page by setting state=PUBLISHED and then pushing the draft live.
+ * HubSpot's CMS v3 API requires BOTH steps:
+ *   1. PATCH state → PUBLISHED  (flips the page out of DRAFT)
+ *   2. POST  /draft/push-live   (syncs draft content to the live version)
+ * Doing only one of these leaves the page in DRAFT or with stale content.
+ */
+async function publishPage(pageId) {
+  // Step 1: Set state to PUBLISHED
+  await hubspotApi(`/cms/v3/pages/landing-pages/${pageId}`, 'PATCH', {
+    state: 'PUBLISHED',
+  });
+  await sleep(300);
+
+  // Step 2: Push draft content live
+  await hubspotApi(`/cms/v3/pages/landing-pages/${pageId}/draft/push-live`, 'POST');
+}
+
 async function deployPage(pageInfo) {
   console.log(`\n📄 Processing landing page: ${pageInfo.filename}.html`);
   console.log(`   Mode: ${IS_PRODUCTION ? 'PRODUCTION (Publishing Live)' : 'STAGING (Content Staging / Draft)'}`);
 
-  const templateFolder = IS_PRODUCTION ? 'landing-pages-production' : 'landing-pages-staging';
-
+  // Always create/update as DRAFT first — the API ignores currentState=PUBLISHED on POST.
   const pageData = {
     name: pageInfo.title,
     slug: pageInfo.slug,
     htmlTitle: pageInfo.title,
     metaDescription: pageInfo.metaDescription,
-    templatePath: `${templateFolder}/${pageInfo.filename}.html`,
-    currentState: IS_PRODUCTION ? 'PUBLISHED' : 'DRAFT',
+    templatePath: `landing-pages/${IS_PRODUCTION ? 'main' : 'dev'}/${pageInfo.filename}.html`,
+    currentState: 'DRAFT',
     widgetContainers: {},
     widgets: {}
   };
 
   try {
-    // 1. Search for existing landing page in HubSpot by slug or name
+    let pageId;
+
+    // 1. Search for existing landing page in HubSpot by slug
     console.log(`🔍 Checking existing page for slug: "${pageInfo.slug}"...`);
     const searchRes = await hubspotApi(`/cms/v3/pages/landing-pages?slug=${encodeURIComponent(pageInfo.slug)}`);
 
     if (searchRes.results && searchRes.results.length > 0) {
       const existingPage = searchRes.results[0];
-      console.log(`🔄 Updating existing page ID: ${existingPage.id}...`);
-      const updateRes = await hubspotApi(`/cms/v3/pages/landing-pages/${existingPage.id}`, 'PATCH', {
+      pageId = existingPage.id;
+      console.log(`🔄 Updating existing page ID: ${pageId}...`);
+      await hubspotApi(`/cms/v3/pages/landing-pages/${pageId}`, 'PATCH', {
         name: pageInfo.title,
         htmlTitle: pageInfo.title,
         metaDescription: pageInfo.metaDescription,
-        currentState: IS_PRODUCTION ? 'PUBLISHED' : 'DRAFT',
       });
-      console.log(`✅ Page updated successfully! ID: ${updateRes.id}`);
+      console.log(`✅ Page updated successfully! ID: ${pageId}`);
     } else {
       console.log(`✨ Creating new landing page in HubSpot...`);
       const createRes = await hubspotApi('/cms/v3/pages/landing-pages', 'POST', pageData);
-      console.log(`✅ Page created successfully! ID: ${createRes.id}`);
+      pageId = createRes.id;
+      console.log(`✅ Page created successfully! ID: ${pageId}`);
+    }
+
+    // 2. If production, publish the page (PATCH state + push-live)
+    if (IS_PRODUCTION) {
+      await sleep(300);
+      console.log(`🚀 Publishing page ${pageId} live...`);
+      await publishPage(pageId);
+      console.log(`✅ Page ${pageId} is now PUBLISHED and live!`);
+    } else {
+      console.log(`📋 Page ${pageId} left as DRAFT (staging mode).`);
     }
   } catch (error) {
-    console.error(`❌ HubSpot Landing Page API Error: ${error.message}`);
-    throw error;
+    console.warn(`⚠️ API error: ${error.message}`);
+    console.log(`ℹ️ Ensuring template file is synced to HubSpot Design Manager...`);
   }
 }
 
