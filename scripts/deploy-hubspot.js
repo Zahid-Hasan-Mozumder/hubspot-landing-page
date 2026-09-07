@@ -18,6 +18,7 @@ const https = require('https');
 
 const HUBSPOT_ACCESS_TOKEN = process.env.HUBSPOT_PERSONAL_ACCESS_KEY || process.env.HUBSPOT_ACCESS_TOKEN;
 const ENVIRONMENT = (process.env.ENVIRONMENT || 'staging').toLowerCase();
+const HUBSPOT_STAGING_DOMAIN = process.env.HUBSPOT_STAGING_DOMAIN;
 
 const IS_DEV = ENVIRONMENT === 'dev';
 const IS_STAGING = ENVIRONMENT === 'staging' || ENVIRONMENT === 'stage';
@@ -156,6 +157,12 @@ async function deployPage(pageInfo) {
     widgets: {}
   };
 
+  // For staging: associate the page with the staging domain so it appears
+  // under Content Staging → resources.getlevrg.com as a staged draft.
+  if (IS_STAGING) {
+    pageData.domain = HUBSPOT_STAGING_DOMAIN;
+  }
+
   try {
     let pageId;
 
@@ -167,12 +174,17 @@ async function deployPage(pageInfo) {
       const existingPage = searchRes.results[0];
       pageId = existingPage.id;
       console.log(`🔄 Updating existing page ID: ${pageId}...`);
-      await hubspotApi(`/cms/v3/pages/landing-pages/${pageId}`, 'PATCH', {
+      const patchData = {
         name: pageInfo.title,
         htmlTitle: pageInfo.title,
         metaDescription: pageInfo.metaDescription,
         templatePath: `${designManagerFolder}/${pageInfo.filename}.html`,
-      });
+      };
+      // For staging: ensure domain is set so page stays under resources.getlevrg.com
+      if (IS_STAGING) {
+        patchData.domain = HUBSPOT_STAGING_DOMAIN;
+      }
+      await hubspotApi(`/cms/v3/pages/landing-pages/${pageId}`, 'PATCH', patchData);
       console.log(`✅ Page updated successfully! ID: ${pageId}`);
     } else {
       console.log(`✨ Creating new landing page in HubSpot...`);
@@ -188,7 +200,7 @@ async function deployPage(pageInfo) {
       await publishPage(pageId);
       console.log(`✅ Page ${pageId} is now PUBLISHED and live!`);
     } else {
-      console.log(`📋 Page ${pageId} left as DRAFT in Content Staging.`);
+      console.log(`📋 Page ${pageId} left as DRAFT in Content Staging (domain: ${HUBSPOT_STAGING_DOMAIN}).`);
     }
   } catch (error) {
     console.warn(`⚠️ API error: ${error.message}`);

@@ -80,6 +80,7 @@ jobs:
         env:
           HUBSPOT_PERSONAL_ACCESS_KEY: ${{ secrets.HUBSPOT_PERSONAL_ACCESS_KEY }}
           HUBSPOT_PRIVATE_APP_TOKEN: ${{ secrets.HUBSPOT_PRIVATE_APP_TOKEN }}
+          HUBSPOT_STAGING_DOMAIN: ${{ secrets.HUBSPOT_STAGING_DOMAIN }}
           ENVIRONMENT: staging
         run: node scripts/deploy-hubspot.js
 
