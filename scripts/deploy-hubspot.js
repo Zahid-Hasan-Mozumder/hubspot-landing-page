@@ -3,8 +3,13 @@
  * Automatically syncs and publishes HTML files from the pages/ directory to HubSpot.
  * 
  * Target Environment:
- * - ENVIRONMENT=staging (or dev branch): Creates/Updates page as DRAFT in Content Staging.
- * - ENVIRONMENT=production (or main branch): Creates/Updates page as PUBLISHED live landing page.
+ * - ENVIRONMENT=dev          : Design Manager sync only — no CMS page creation.
+ *                              Templates are uploaded to `landing-pages/design-manager/` via
+ *                              the hubspot-cms-deploy-action step that runs before this script.
+ * - ENVIRONMENT=staging      : Creates/Updates pages as DRAFT in Content Staging.
+ *                              Templates go to `landing-pages/content-staging/`.
+ * - ENVIRONMENT=production   : Creates/Updates pages as PUBLISHED live landing pages.
+ *                              Templates go to `landing-pages/production/`.
  */
 
 const fs = require('fs');
@@ -13,7 +18,19 @@ const https = require('https');
 
 const HUBSPOT_ACCESS_TOKEN = process.env.HUBSPOT_PERSONAL_ACCESS_KEY || process.env.HUBSPOT_ACCESS_TOKEN;
 const ENVIRONMENT = (process.env.ENVIRONMENT || 'staging').toLowerCase();
+
+const IS_DEV = ENVIRONMENT === 'dev';
+const IS_STAGING = ENVIRONMENT === 'staging' || ENVIRONMENT === 'stage';
 const IS_PRODUCTION = ENVIRONMENT === 'production' || ENVIRONMENT === 'main';
+
+/**
+ * Map environment to the corresponding Design Manager folder name.
+ */
+function getDesignManagerFolder() {
+  if (IS_DEV) return 'landing-pages/design-manager';
+  if (IS_STAGING) return 'landing-pages/content-staging';
+  return 'landing-pages/production';
+}
 
 if (!HUBSPOT_ACCESS_TOKEN) {
   console.error('❌ Error: HUBSPOT_PERSONAL_ACCESS_KEY environment variable is not set.');
@@ -100,9 +117,32 @@ async function publishPage(pageId) {
   await hubspotApi(`/cms/v3/pages/landing-pages/${pageId}/draft/push-live`, 'POST');
 }
 
+/**
+ * Deploy a single page to HubSpot.
+ * 
+ * For 'dev' environment: Skips CMS Pages API — templates are already synced
+ *                        to Design Manager by the hubspot-cms-deploy-action.
+ * For 'staging':         Creates/Updates the page as DRAFT (Content Staging).
+ * For 'production':      Creates/Updates the page and PUBLISHES it live.
+ */
 async function deployPage(pageInfo) {
   console.log(`\n📄 Processing landing page: ${pageInfo.filename}.html`);
-  console.log(`   Mode: ${IS_PRODUCTION ? 'PRODUCTION (Publishing Live)' : 'STAGING (Content Staging / Draft)'}`);
+
+  // ── Dev environment: Design Manager only (no CMS page creation) ──
+  if (IS_DEV) {
+    console.log(`   Mode: DEV (Design Manager Only)`);
+    console.log(`   📁 Template synced to Design Manager: ${getDesignManagerFolder()}/${pageInfo.filename}.html`);
+    console.log(`   ℹ️  No CMS landing page created — template available in Design Manager for preview.`);
+    return;
+  }
+
+  // ── Staging or Production: Create/Update CMS pages ──
+  const modeLabel = IS_PRODUCTION
+    ? 'PRODUCTION (Publishing Live)'
+    : 'STAGING (Content Staging / Draft)';
+  console.log(`   Mode: ${modeLabel}`);
+
+  const designManagerFolder = getDesignManagerFolder();
 
   // Always create/update as DRAFT first — the API ignores currentState=PUBLISHED on POST.
   const pageData = {
@@ -110,7 +150,7 @@ async function deployPage(pageInfo) {
     slug: pageInfo.slug,
     htmlTitle: pageInfo.title,
     metaDescription: pageInfo.metaDescription,
-    templatePath: `landing-pages/${IS_PRODUCTION ? 'main' : 'dev'}/${pageInfo.filename}.html`,
+    templatePath: `${designManagerFolder}/${pageInfo.filename}.html`,
     currentState: 'DRAFT',
     widgetContainers: {},
     widgets: {}
@@ -131,6 +171,7 @@ async function deployPage(pageInfo) {
         name: pageInfo.title,
         htmlTitle: pageInfo.title,
         metaDescription: pageInfo.metaDescription,
+        templatePath: `${designManagerFolder}/${pageInfo.filename}.html`,
       });
       console.log(`✅ Page updated successfully! ID: ${pageId}`);
     } else {
@@ -147,7 +188,7 @@ async function deployPage(pageInfo) {
       await publishPage(pageId);
       console.log(`✅ Page ${pageId} is now PUBLISHED and live!`);
     } else {
-      console.log(`📋 Page ${pageId} left as DRAFT (staging mode).`);
+      console.log(`📋 Page ${pageId} left as DRAFT in Content Staging.`);
     }
   } catch (error) {
     console.warn(`⚠️ API error: ${error.message}`);
@@ -157,7 +198,16 @@ async function deployPage(pageInfo) {
 
 async function main() {
   console.log(`🚀 Starting HubSpot Landing Page Deployment...`);
-  console.log(` Target Environment: ${ENVIRONMENT.toUpperCase()}`);
+  console.log(`   Target Environment: ${ENVIRONMENT.toUpperCase()}`);
+  console.log(`   Design Manager Folder: ${getDesignManagerFolder()}`);
+
+  if (IS_DEV) {
+    console.log(`   Strategy: Design Manager sync only (no CMS page creation)`);
+  } else if (IS_STAGING) {
+    console.log(`   Strategy: Content Staging — create/update pages as DRAFT`);
+  } else {
+    console.log(`   Strategy: Production — create/update and PUBLISH pages live`);
+  }
 
   if (!fs.existsSync(PAGES_DIR)) {
     console.error(`❌ Error: Pages directory ${PAGES_DIR} does not exist.`);

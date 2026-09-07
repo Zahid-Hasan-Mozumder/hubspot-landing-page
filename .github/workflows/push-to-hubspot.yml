@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - dev
+      - stage
       - main
     paths:
       - 'pages/**'
@@ -13,11 +14,47 @@ on:
 
 jobs:
   # ----------------------------------------------------
-  # Dev Branch -> Deploy to HubSpot Content Staging
+  # Dev Branch -> Sync to HubSpot Design Manager Only
+  # (No CMS page creation — templates only for preview)
   # ----------------------------------------------------
-  deploy-dev-staging:
-    name: Deploy to HubSpot Content Staging (dev)
+  deploy-dev-design-manager:
+    name: Sync to HubSpot Design Manager (dev)
     if: github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        run: npm ci || npm install
+
+      - name: Sync HTML Files to HubSpot Design Manager (Dev Folder)
+        uses: HubSpot/hubspot-cms-deploy-action@v2.0.1
+        with:
+          src_dir: 'pages'
+          dest_dir: 'landing-pages/design-manager'
+          account_id: ${{ secrets.HUBSPOT_ACCOUNT_ID }}
+          personal_access_key: ${{ secrets.HUBSPOT_PERSONAL_ACCESS_KEY }}
+
+      - name: Log Design Manager Sync Result
+        env:
+          HUBSPOT_PERSONAL_ACCESS_KEY: ${{ secrets.HUBSPOT_PERSONAL_ACCESS_KEY }}
+          HUBSPOT_PRIVATE_APP_TOKEN: ${{ secrets.HUBSPOT_PRIVATE_APP_TOKEN }}
+          ENVIRONMENT: dev
+        run: node scripts/deploy-hubspot.js
+
+  # ----------------------------------------------------
+  # Stage Branch -> Deploy to HubSpot Content Staging
+  # (Syncs templates + creates/updates DRAFT pages)
+  # ----------------------------------------------------
+  deploy-stage-content-staging:
+    name: Deploy to HubSpot Content Staging (stage)
+    if: github.ref == 'refs/heads/stage'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -35,11 +72,11 @@ jobs:
         uses: HubSpot/hubspot-cms-deploy-action@v2.0.1
         with:
           src_dir: 'pages'
-          dest_dir: 'landing-pages-staging'
+          dest_dir: 'landing-pages/content-staging'
           account_id: ${{ secrets.HUBSPOT_ACCOUNT_ID }}
           personal_access_key: ${{ secrets.HUBSPOT_PERSONAL_ACCESS_KEY }}
 
-      - name: Publish Landing Pages to HubSpot Content Staging
+      - name: Create/Update Landing Pages in HubSpot Content Staging
         env:
           HUBSPOT_PERSONAL_ACCESS_KEY: ${{ secrets.HUBSPOT_PERSONAL_ACCESS_KEY }}
           HUBSPOT_PRIVATE_APP_TOKEN: ${{ secrets.HUBSPOT_PRIVATE_APP_TOKEN }}
@@ -48,6 +85,7 @@ jobs:
 
   # ----------------------------------------------------
   # Main Branch -> Deploy to HubSpot Production Landing Pages
+  # (Syncs templates + creates/updates and PUBLISHES pages live)
   # ----------------------------------------------------
   deploy-main-production:
     name: Deploy to HubSpot Live Landing Pages (main)
@@ -69,7 +107,7 @@ jobs:
         uses: HubSpot/hubspot-cms-deploy-action@v2.0.1
         with:
           src_dir: 'pages'
-          dest_dir: 'landing-pages-production'
+          dest_dir: 'landing-pages/production'
           account_id: ${{ secrets.HUBSPOT_ACCOUNT_ID }}
           personal_access_key: ${{ secrets.HUBSPOT_PERSONAL_ACCESS_KEY }}
 

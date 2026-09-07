@@ -6,10 +6,11 @@ An automated pipeline for developing, staging, and publishing HTML landing pages
 
 ## 📌 Features
 
-- **Automated Deployments**: Every push to `dev` or `main` automatically triggers a deployment to HubSpot.
-- **Dual Branch Strategy**:
-  - **`dev` Branch**: Automatically publishes new/updated HTML landing pages to **HubSpot Content Staging** (`DRAFT` state) for QA, preview, and marketing review.
-  - **`main` Branch**: Automatically publishes HTML landing pages live to **HubSpot Production Landing Pages** (`PUBLISHED` state).
+- **Automated Deployments**: Every push to `dev`, `stage`, or `main` automatically triggers a deployment to HubSpot.
+- **Three-Branch Strategy**:
+  - **`dev` Branch**: Syncs HTML templates to **HubSpot Design Manager** only — no CMS page creation. Templates are available for developer preview under `landing-pages/design-manager/`.
+  - **`stage` Branch**: Syncs templates to Design Manager **and** creates/updates landing pages as **DRAFT** in **HubSpot Content Staging** for QA, preview, and marketing review.
+  - **`main` Branch**: Syncs templates to Design Manager **and** publishes landing pages **live** to **HubSpot Production**.
 - **Zero-Downtime Sync**: Syncs template assets directly with HubSpot Design Manager and updates page metadata seamlessly.
 
 ---
@@ -20,7 +21,7 @@ An automated pipeline for developing, staging, and publishing HTML landing pages
 hubspot-landing-page/
 ├── .github/
 │   └── workflows/
-│       └── push-to-hubspot.yml        # GitHub Actions workflow for dev & main branches
+│       └── push-to-hubspot.yml        # GitHub Actions workflow for dev, stage & main branches
 ├── pages/                              # Folder for all HTML landing pages
 │   └── README.md                       # Guidelines for writing HTML pages for HubSpot
 ├── scripts/
@@ -37,7 +38,7 @@ hubspot-landing-page/
 
 ### 1. Adding a New Landing Page
 
-1. Create a new `.html` file inside the [`pages/`](file:///d:/Get-Levrg/demo/hubspot-landing-pages/pages/) directory using lower-kebab-case:
+1. Create a new `.html` file inside the `pages/` directory using lower-kebab-case:
    ```bash
    # Example
    pages/black-friday-sale.html
@@ -46,22 +47,32 @@ hubspot-landing-page/
 
 ### 2. Deployment Workflow
 
-#### Staging Deployment (`dev` Branch)
+#### Design Manager Preview (`dev` Branch)
 1. Push your changes to the `dev` branch or create a PR targeting `dev`:
    ```bash
-   git checkout -b dev
+   git checkout dev
    git add pages/black-friday-sale.html
    git commit -m "Add Black Friday landing page"
    git push origin dev
    ```
-2. **GitHub Action triggers**: The page is automatically published as a **Draft** in **HubSpot Content Staging**.
-3. Review and QA the page inside HubSpot Content Staging.
+2. **GitHub Action triggers**: The HTML template is synced to **HubSpot Design Manager** under `landing-pages/design-manager/`.
+3. Preview and verify the template directly in Design Manager (Marketing → Website → Landing Pages → More Tools → Design Manager).
+
+#### Content Staging Deployment (`stage` Branch)
+1. Merge your `dev` branch into `stage` (or push directly to `stage`):
+   ```bash
+   git checkout stage
+   git merge dev
+   git push origin stage
+   ```
+2. **GitHub Action triggers**: The template is synced to Design Manager **and** a **DRAFT** landing page is created/updated in **HubSpot Content Staging**.
+3. Review and QA the page inside HubSpot Content Staging (Marketing → Website → Landing Pages → Content Staging).
 
 #### Live Production Deployment (`main` Branch)
-1. Merge your `dev` branch into `main` (or push directly to `main`):
+1. Merge your `stage` branch into `main` (or push directly to `main`):
    ```bash
    git checkout main
-   git merge dev
+   git merge stage
    git push origin main
    ```
 2. **GitHub Action triggers**: The landing page goes **Live / Published** on HubSpot!
@@ -76,6 +87,7 @@ To connect GitHub Actions with your HubSpot account, add the following secrets i
 | :--- | :--- |
 | `HUBSPOT_PERSONAL_ACCESS_KEY` | HubSpot Private App Access Token with `content` and `files` scope. |
 | `HUBSPOT_ACCOUNT_ID` | Your HubSpot Account / Portal ID. |
+| `HUBSPOT_PRIVATE_APP_TOKEN` | HubSpot Private App Token (used for CMS Pages API). |
 
 ---
 
@@ -88,8 +100,11 @@ npm install
 
 Test deployment scripts locally:
 ```bash
-# Test deployment to Staging environment (Draft state)
+# Test deployment to Design Manager only (dev mode — no page creation)
 npm run deploy:dev
+
+# Test deployment to Content Staging (Draft state)
+npm run deploy:stage
 
 # Test deployment to Production environment (Published state)
 npm run deploy:main
@@ -99,4 +114,4 @@ npm run deploy:main
 
 ## 📖 Further Documentation
 
-For full architectural details, API endpoints used, and security guidelines, see [REQUIREMENTS.md](file:///d:/Get-Levrg/demo/hubspot-landing-pages/REQUIREMENTS.md).
+For full architectural details, API endpoints used, and security guidelines, see [REQUIREMENTS.md](REQUIREMENTS.md).
