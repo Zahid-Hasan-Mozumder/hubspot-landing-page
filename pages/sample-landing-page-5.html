@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sample Landing Page - HubSpot Demo</title>
+    <meta name="description" content="A high-converting landing page built for HubSpot deployment via GitHub Actions.">
+    <style>
+        :root {
+            --primary: #ff7a59;
+            --primary-hover: #ff5c35;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #38bdf8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            padding: 2rem 1rem;
+            text-align: center;
+            background: linear-gradient(185deg, #1e293b 0%, #0f172a 100%);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.35rem 0.85rem;
+            background: rgba(255, 122, 89, 0.15);
+            color: var(--primary);
+            border: 1px solid rgba(255, 122, 89, 0.3);
+            border-radius: 50px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        h1 {
+            font-size: 2.75rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p.subtitle {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            max-width: 650px;
+            margin: 0 auto 2rem;
+        }
+
+        .cta-btn {
+            display: inline-block;
+            padding: 0.875rem 2rem;
+            background-color: var(--primary);
+            color: #ffffff;
+            text-decoration: none;
+            font-weight: 700;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px -5px rgba(255, 122, 89, 0.4);
+            transition: all 0.2s ease-in-out;
+        }
+
+        .cta-btn:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 15px 30px -5px rgba(255, 122, 89, 0.5);
+        }
+
+        main {
+            flex: 1;
+            max-width: 1000px;
+            margin: 3rem auto;
+            padding: 0 1.5rem;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .feature-card {
+            background: var(--card-bg);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 1.75rem;
+            transition: border-color 0.2s;
+        }
+
+        .feature-card:hover {
+            border-color: var(--accent);
+        }
+
+        .feature-card h3 {
+            font-size: 1.3rem;
+            margin-bottom: 0.75rem;
+            color: var(--text);
+        }
+
+        .feature-card p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="badge">HubSpot Automated CI/CD</div>
+        <h1>Streamlined Landing Page Deployments</h1>
+        <p class="subtitle">Deploy your HTML landing pages automatically to HubSpot Content Staging on <code>dev</code>
+            and live to production on <code>main</code>.</p>
+        <a href="#get-started" class="cta-btn">Get Started Now</a>
+    </header>
+
+    <main>
+        <div class="features-grid">
+            <div class="feature-card">
+                <h3>🚀 Automated Workflows</h3>
+                <p>GitHub Actions automatically validates and deploys HTML pages upon every branch push.</p>
+            </div>
+            <div class="feature-card">
+                <h3>🧪 Content Staging Mode</h3>
+                <p>Pushes to <code>dev</code> go into HubSpot's Content Staging so marketers can review before
+                    publishing.</p>
+            </div>
+            <div class="feature-card">
+                <h3>⚡ Production Direct Publish</h3>
+                <p>Merging into <code>main</code> immediately updates and publishes the live landing page in HubSpot.
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        &copy; 2026 HubSpot Landing Pages Automation. Managed via GitHub Actions.
+    </footer>
+</body>
+
+</html>
