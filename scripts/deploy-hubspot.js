@@ -123,7 +123,10 @@ async function publishPage(pageId) {
  * 
  * For 'dev' environment: Skips CMS Pages API — templates are already synced
  *                        to Design Manager by the hubspot-cms-deploy-action.
- * For 'staging':         Creates/Updates the page as DRAFT (Content Staging).
+ * For 'staging':         Creates page, publishes it, then updates the DRAFT
+ *                        so it appears in Content Staging as a "Staged draft".
+ *                        HubSpot Content Staging only shows published pages
+ *                        that have pending (unpublished) draft changes.
  * For 'production':      Creates/Updates the page and PUBLISHES it live.
  */
 async function deployPage(pageInfo) {
@@ -140,31 +143,14 @@ async function deployPage(pageInfo) {
   // ── Staging or Production: Create/Update CMS pages ──
   const modeLabel = IS_PRODUCTION
     ? 'PRODUCTION (Publishing Live)'
-    : 'STAGING (Content Staging / Draft)';
+    : 'STAGING (Content Staging → Staged Draft)';
   console.log(`   Mode: ${modeLabel}`);
 
   const designManagerFolder = getDesignManagerFolder();
 
-  // Always create/update as DRAFT first — the API ignores currentState=PUBLISHED on POST.
-  const pageData = {
-    name: pageInfo.title,
-    slug: pageInfo.slug,
-    htmlTitle: pageInfo.title,
-    metaDescription: pageInfo.metaDescription,
-    templatePath: `${designManagerFolder}/${pageInfo.filename}.html`,
-    currentState: 'DRAFT',
-    widgetContainers: {},
-    widgets: {}
-  };
-
-  // For staging: associate the page with the staging domain so it appears
-  // under Content Staging → resources.getlevrg.com as a staged draft.
-  if (IS_STAGING) {
-    pageData.domain = HUBSPOT_STAGING_DOMAIN;
-  }
-
   try {
     let pageId;
+    let isNewPage = false;
 
     // 1. Search for existing landing page in HubSpot by slug
     console.log(`🔍 Checking existing page for slug: "${pageInfo.slug}"...`);
@@ -173,34 +159,76 @@ async function deployPage(pageInfo) {
     if (searchRes.results && searchRes.results.length > 0) {
       const existingPage = searchRes.results[0];
       pageId = existingPage.id;
-      console.log(`🔄 Updating existing page ID: ${pageId}...`);
-      const patchData = {
+      console.log(`🔄 Found existing page ID: ${pageId} (state: ${existingPage.currentState || existingPage.state})`);
+    } else {
+      isNewPage = true;
+      console.log(`✨ Creating new landing page in HubSpot...`);
+
+      const pageData = {
         name: pageInfo.title,
+        slug: pageInfo.slug,
         htmlTitle: pageInfo.title,
         metaDescription: pageInfo.metaDescription,
         templatePath: `${designManagerFolder}/${pageInfo.filename}.html`,
+        currentState: 'DRAFT',
+        widgetContainers: {},
+        widgets: {}
       };
-      // For staging: ensure domain is set so page stays under resources.getlevrg.com
-      if (IS_STAGING) {
-        patchData.domain = HUBSPOT_STAGING_DOMAIN;
+
+      // Set domain for staging so it appears under the correct domain in Content Staging
+      if (IS_STAGING && HUBSPOT_STAGING_DOMAIN) {
+        pageData.domain = HUBSPOT_STAGING_DOMAIN;
       }
-      await hubspotApi(`/cms/v3/pages/landing-pages/${pageId}`, 'PATCH', patchData);
-      console.log(`✅ Page updated successfully! ID: ${pageId}`);
-    } else {
-      console.log(`✨ Creating new landing page in HubSpot...`);
+
       const createRes = await hubspotApi('/cms/v3/pages/landing-pages', 'POST', pageData);
       pageId = createRes.id;
       console.log(`✅ Page created successfully! ID: ${pageId}`);
     }
 
-    // 2. If production, publish the page (PATCH state + push-live)
+    // ── Production: Update and publish the page live ──
     if (IS_PRODUCTION) {
+      // Update the page with latest content
+      await hubspotApi(`/cms/v3/pages/landing-pages/${pageId}`, 'PATCH', {
+        name: pageInfo.title,
+        htmlTitle: pageInfo.title,
+        metaDescription: pageInfo.metaDescription,
+        templatePath: `${designManagerFolder}/${pageInfo.filename}.html`,
+      });
       await sleep(300);
       console.log(`🚀 Publishing page ${pageId} live...`);
       await publishPage(pageId);
       console.log(`✅ Page ${pageId} is now PUBLISHED and live!`);
-    } else {
-      console.log(`📋 Page ${pageId} left as DRAFT in Content Staging (domain: ${HUBSPOT_STAGING_DOMAIN}).`);
+    }
+
+    // ── Staging: Publish first, then update the draft ──
+    // Content Staging in HubSpot only shows pages that are:
+    //   (a) PUBLISHED and
+    //   (b) have pending draft changes that differ from live.
+    // So we must: publish the page → then update ONLY the draft endpoint.
+    if (IS_STAGING) {
+      // Step 1: Publish the page (makes it a published page on the staging domain)
+      console.log(`📤 Publishing page ${pageId} so it becomes eligible for Content Staging...`);
+      await publishPage(pageId);
+      await sleep(500);
+      console.log(`✅ Page ${pageId} is now PUBLISHED on domain: ${HUBSPOT_STAGING_DOMAIN || '(default)'}`);
+
+      // Step 2: Update ONLY the draft (not the live version) via the /draft endpoint
+      // This creates a "staged" state — the draft differs from live.
+      const draftData = {
+        name: `${pageInfo.title} (staged)`,
+        htmlTitle: pageInfo.title,
+        metaDescription: pageInfo.metaDescription,
+        templatePath: `${designManagerFolder}/${pageInfo.filename}.html`,
+      };
+
+      if (HUBSPOT_STAGING_DOMAIN) {
+        draftData.domain = HUBSPOT_STAGING_DOMAIN;
+      }
+
+      console.log(`📝 Updating draft for page ${pageId} (creating staged changes)...`);
+      await hubspotApi(`/cms/v3/pages/landing-pages/${pageId}/draft`, 'PATCH', draftData);
+      console.log(`✅ Page ${pageId} now has a staged draft in Content Staging!`);
+      console.log(`   📋 View it in HubSpot → Content → Landing Pages → Content Staging → ${HUBSPOT_STAGING_DOMAIN || 'your domain'} → Staged draft`);
     }
   } catch (error) {
     console.warn(`⚠️ API error: ${error.message}`);
